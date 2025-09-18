@@ -14,7 +14,7 @@ class User {
     
     const passwordHash = await hash(password, 10);
     const result = await query(
-      'INSERT INTO users (first_name, last_name, email, phone, password_hash, company_id) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO users (first_name, last_name, email, phone, password_hash, company_id) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
       [firstName, lastName, email, phone || null, passwordHash, companyId || null]
     );
 

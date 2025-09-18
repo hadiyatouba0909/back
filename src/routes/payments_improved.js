@@ -99,11 +99,11 @@ router.get('/', authRequired, async (req, res, next) => {
     }
 
     if (monthsList.length === 1) {
-      whereClause += ' AND DATE_FORMAT(p.date, "%Y-%m") = :m0';
+      whereClause += " AND to_char(p.date, 'YYYY-MM') = :m0";
       params.m0 = monthsList[0];
     } else if (monthsList.length > 1) {
       const names = monthsList.map((_, i) => `:m${i}`).join(', ');
-      whereClause += ` AND DATE_FORMAT(p.date, "%Y-%m") IN (${names})`;
+      whereClause += ` AND to_char(p.date, 'YYYY-MM') IN (${names})`;
       monthsList.forEach((m, i) => (params[`m${i}`] = m));
     }
 
@@ -181,7 +181,7 @@ router.post('/', authRequired, async (req, res, next) => {
          LEFT JOIN employees e ON e.id = p.employee_id
          WHERE p.employee_id = :employee_id AND e.company_id = :company_id
          AND COALESCE(p.type,'salary') = 'salary'
-         AND DATE_FORMAT(p.date, "%Y-%m") = :month
+         AND to_char(p.date, 'YYYY-MM') = :month
          LIMIT 1`,
         { employee_id: employeeId, company_id: req.user.company_id, month: monthKey }
       );
@@ -200,7 +200,7 @@ router.post('/', authRequired, async (req, res, next) => {
 
     while (attempts < 3) {
       const [{ maxRef }] = await query(
-        "SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(reference, '-', -1) AS UNSIGNED)), 0) AS maxRef FROM payments WHERE reference LIKE :prefix",
+        "SELECT COALESCE(MAX(CAST(split_part(reference, '-', 3) AS INTEGER)), 0) AS "maxRef" FROM payments WHERE reference LIKE :prefix",
         { prefix: `PAY-${year}-%` }
       );
 
@@ -211,7 +211,8 @@ router.post('/', authRequired, async (req, res, next) => {
       try {
         const result = await query(
           `INSERT INTO payments (employee_id, amount_cfa, amount_usd, date, status, reference, type)
-           VALUES (:employee_id, :amount_cfa, :amount_usd, :date, :status, :reference, :type)`,
+           VALUES (:employee_id, :amount_cfa, :amount_usd, :date, :status, :reference, :type)
+           RETURNING id`,
           {
             employee_id: employeeId,
             amount_cfa: amountCFA,
@@ -231,7 +232,7 @@ router.post('/', authRequired, async (req, res, next) => {
           type: effectiveType
         });
       } catch (e) {
-        if (e && e.code === 'ER_DUP_ENTRY') {
+        if (e && (e.code === 'ER_DUP_ENTRY' || e.code === '23505')) {
           attempts += 1;
           continue;
         }
@@ -287,7 +288,7 @@ router.put('/:id', authRequired, async (req, res, next) => {
          LEFT JOIN employees e ON e.id = p.employee_id
          WHERE e.company_id = :company_id AND p.employee_id = :employee_id AND p.id <> :id
            AND COALESCE(p.type,'salary') = 'salary'
-           AND DATE_FORMAT(p.date, "%Y-%m") = :month
+           AND to_char(p.date, 'YYYY-MM') = :month
          LIMIT 1`,
         { company_id: req.user.company_id, employee_id: existing.employee_id, id: req.params.id, month: monthKey }
       );
@@ -304,13 +305,13 @@ router.put('/:id', authRequired, async (req, res, next) => {
 
     const result = await query(
       `UPDATE payments p
-       LEFT JOIN employees e ON e.id = p.employee_id
-       SET p.amount_cfa = COALESCE(:amount_cfa, p.amount_cfa), 
-           p.amount_usd = COALESCE(:amount_usd, p.amount_usd),
-           p.date = COALESCE(:date, p.date), 
-           p.status = COALESCE(:status, p.status),
-           p.type = COALESCE(:type, p.type) 
-       WHERE p.id = :id AND e.company_id = :company_id`,
+       SET amount_cfa = COALESCE(:amount_cfa, p.amount_cfa), 
+           amount_usd = COALESCE(:amount_usd, p.amount_usd),
+           date = COALESCE(:date, p.date), 
+           status = COALESCE(:status, p.status),
+           type = COALESCE(:type, p.type) 
+       FROM employees e
+       WHERE e.id = p.employee_id AND p.id = :id AND e.company_id = :company_id`,
       {
         id: req.params.id,
         company_id: req.user.company_id,
@@ -330,9 +331,9 @@ router.put('/:id', authRequired, async (req, res, next) => {
 router.delete('/:id', authRequired, async (req, res, next) => {
   try {
     const result = await query(
-      `DELETE p FROM payments p
-       LEFT JOIN employees e ON e.id = p.employee_id
-       WHERE p.id = :id AND e.company_id = :company_id`,
+      `DELETE FROM payments p
+       USING employees e
+       WHERE e.id = p.employee_id AND p.id = :id AND e.company_id = :company_id`,
       { id: req.params.id, company_id: req.user.company_id }
     );
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Payment not found' });
@@ -392,7 +393,7 @@ router.post('/batch', authRequired, async (req, res, next) => {
             `SELECT p.id FROM payments p
              WHERE p.employee_id = :employee_id
                AND COALESCE(p.type,'salary') = 'salary'
-               AND DATE_FORMAT(p.date, "%Y-%m") = :month
+               AND to_char(p.date, 'YYYY-MM') = :month
              LIMIT 1`,
             { employee_id: employee.id, month: monthKey }
           );
@@ -413,7 +414,7 @@ router.post('/batch', authRequired, async (req, res, next) => {
 
         while (attempts < 3) {
           const [{ maxRef }] = await query(
-            "SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(reference, '-', -1) AS UNSIGNED)), 0) AS maxRef FROM payments WHERE reference LIKE :prefix",
+            "SELECT COALESCE(MAX(CAST(split_part(reference, '-', 3) AS INTEGER)), 0) AS "maxRef" FROM payments WHERE reference LIKE :prefix",
             { prefix: `PAY-${year}-%` }
           );
           const next = Number(maxRef) + 1;
@@ -423,7 +424,8 @@ router.post('/batch', authRequired, async (req, res, next) => {
           try {
             const result = await query(
               `INSERT INTO payments (employee_id, amount_cfa, amount_usd, date, status, reference, type)
-               VALUES (:employee_id, :amount_cfa, :amount_usd, :date, :status, :reference, :type)`,
+               VALUES (:employee_id, :amount_cfa, :amount_usd, :date, :status, :reference, :type)
+               RETURNING id`,
               {
                 employee_id: employee.id,
                 amount_cfa: amountCFA,
@@ -448,7 +450,7 @@ router.post('/batch', authRequired, async (req, res, next) => {
             });
             break;
           } catch (e) {
-            if (e && e.code === 'ER_DUP_ENTRY') {
+            if (e && (e.code === 'ER_DUP_ENTRY' || e.code === '23505')) {
               attempts += 1;
               continue;
             }

@@ -8,7 +8,7 @@ class Settings {
    * @returns {Promise<string|null>} Valeur du paramètre ou null
    */
   static async getValue(key) {
-    const rows = await query("SELECT `value` FROM settings WHERE `key` = :key", { key });
+    const rows = await query("SELECT value FROM settings WHERE \"key\" = :key", { key });
     return rows.length > 0 ? rows[0].value : null;
   }
 
@@ -20,8 +20,8 @@ class Settings {
    */
   static async setValue(key, value) {
     const result = await query(
-      `INSERT INTO settings (\`key\`, \`value\`) VALUES (:key, :value)
-       ON DUPLICATE KEY UPDATE \`value\` = VALUES(\`value\`)`,
+      `INSERT INTO settings ("key", "value") VALUES (:key, :value)
+       ON CONFLICT ("key") DO UPDATE SET "value" = EXCLUDED."value"`,
       { key, value: String(value) }
     );
     
@@ -50,7 +50,7 @@ class Settings {
    * @returns {Promise<Array>} Liste de tous les paramètres
    */
   static async getAll() {
-    return await query("SELECT `key`, `value` FROM settings ORDER BY `key`");
+    return await query("SELECT \"key\", value FROM settings ORDER BY \"key\"");
   }
 
   /**
@@ -59,7 +59,7 @@ class Settings {
    * @returns {Promise<boolean>} True si supprimé
    */
   static async delete(key) {
-    const result = await query("DELETE FROM settings WHERE `key` = :key", { key });
+    const result = await query("DELETE FROM settings WHERE \"key\" = :key", { key });
     return result.affectedRows > 0;
   }
 

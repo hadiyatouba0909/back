@@ -57,7 +57,8 @@ class Employee {
 
     const result = await query(
       `INSERT INTO employees (company_id, name, email, phone, position, contract, salary_cfa, salary_usd, start_date)
-       VALUES (:company_id, :name, :email, :phone, :position, :contract, :salary_cfa, :salary_usd, :start_date)`,
+       VALUES (:company_id, :name, :email, :phone, :position, :contract, :salary_cfa, :salary_usd, :start_date)
+       RETURNING id`,
       {
         company_id,
         name,

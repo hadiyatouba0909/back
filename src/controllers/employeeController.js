@@ -53,7 +53,7 @@ class EmployeeController {
       // Si l'utilisateur n'a pas de company_id, créer automatiquement une entreprise
       if (!companyId) {
         const companyResult = await query(
-          'INSERT INTO companies (name, email) VALUES (:name, :email)',
+          'INSERT INTO companies (name, email) VALUES (:name, :email) RETURNING id',
           {
             name: `Entreprise de ${req.user.firstName} ${req.user.lastName}`,
             email: req.user.email

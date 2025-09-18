@@ -59,7 +59,7 @@ class Company {
     const { name, address, email, phone } = companyData;
     
     const result = await query(
-      'INSERT INTO companies (name, address, email, phone) VALUES (:name, :address, :email, :phone)',
+      'INSERT INTO companies (name, address, email, phone) VALUES (:name, :address, :email, :phone) RETURNING id',
       {
         name,
         address: address || null,

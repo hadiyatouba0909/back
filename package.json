@@ -1,13 +1,15 @@
 {
   "name": "payroll-backend",
   "version": "1.0.0",
-  "description": "Backend API for front-payroll (Express + MySQL)",
+  "description": "Backend API for front-payroll (Express + PostgreSQL)",
   "main": "src/server.js",
   "type": "module",
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "test": "node test-api.js"
+    "test": "node test-api.js",
+    "db:test": "node scripts/db-test.js",
+    "db:setup": "node scripts/db-setup.js"
   },
   "keywords": [
     "payroll",
@@ -25,7 +27,7 @@
     "express": "^4.19.2",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
-    "mysql2": "^3.10.0",
+    "pg": "^8.11.3",
     "morgan": "^1.10.0"
   },
   "devDependencies": {
