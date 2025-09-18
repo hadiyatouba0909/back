@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: back
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: JWT_SECRET
+        value: saraya_jwt_secret_key_2024_very_secure_random_string
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: DB_HOST
+        value: localhost
+      - key: DB_PORT
+        value: 3306
+      - key: DB_USER
+        value: root
+      - key: DB_PASSWORD
+        value: Neneba1234@
+      - key: DB_NAME
+        value: payroll
+      - key: CURRENCY_API_KEY
+        value: fca_live_NW7AKXEBQvBqhj6lVoWyGVCGnrkveEBhbmknlrYM
+      - key: CURRENCY_API_URL
+        value: https://api.freecurrencyapi.com/v1/latest
+
+# Configuration optionnelle pour une base de données PostgreSQL
+# databases:
+#   - name: payroll-db
+#     plan: starter
+#     databaseName: payroll
+#     user: root
